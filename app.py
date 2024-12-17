@@ -4,21 +4,20 @@ import numpy as np
 import streamlit as st
 
 # Load the trained model
-#model_file = "audience_rating_model-final.pkl"
-
 model_file = "audience_rating_model-final.pkl"
 model = joblib.load(model_file)
 
 # Title and description for Streamlit app
 st.title("🎬 Audience Rating Prediction App")
-st.write("Use this tool to predict the audience rating for a movie based on adjustable tomatometer ratings and other movie details.")
+st.write(
+    "Use this tool to predict the audience rating for a movie based on adjustable tomatometer ratings and other movie details.")
 
 # Function to create movie data
 def create_movie_data(tomatometer_rating):
     """
     Prepare a DataFrame with user-input movie data and a given tomatometer rating.
     """
-    # Ensure that inputs are not empty and use default values where necessary
+    # Get inputs from session state or use defaults
     movie_title = st.session_state.get('movie_title', 'Blockbuster Movie')
     movie_info = st.session_state.get('movie_info', 'An outstanding critically acclaimed movie')
     critics_consensus = st.session_state.get('critics_consensus', 'Overwhelmingly positive reviews')
@@ -27,8 +26,8 @@ def create_movie_data(tomatometer_rating):
     directors = st.session_state.get('directors', 'Famous Director')
     writers = st.session_state.get('writers', 'Top Screenwriter')
     cast = st.session_state.get('cast', 'Famous Actor A, Famous Actor B')
-    in_theaters_date = st.session_state.get('in_theaters_date', '2024-12-01')  # Default date
-    on_streaming_date = st.session_state.get('on_streaming_date', '2025-01-01')  # Default date
+    in_theaters_date = st.session_state.get('in_theaters_date', '2024-12-01')
+    on_streaming_date = st.session_state.get('on_streaming_date', '2025-01-01')
     runtime = st.session_state.get('runtime', 150)
     studio_name = st.session_state.get('studio_name', 'Top Studio')
     tomatometer_status = st.session_state.get('tomatometer_status', 'Certified Fresh')
@@ -53,6 +52,7 @@ def create_movie_data(tomatometer_rating):
     }
     return pd.DataFrame(data)
 
+
 # User inputs in the sidebar
 st.sidebar.header("📋 Enter Movie Details")
 st.sidebar.text_input("Movie Title", "Blockbuster Movie", key="movie_title")
@@ -70,32 +70,26 @@ st.sidebar.text_input("Studio Name", "Top Studio", key="studio_name")
 st.sidebar.selectbox("Tomatometer Status", ["Fresh", "Certified Fresh", "Rotten"], index=1, key="tomatometer_status")
 st.sidebar.number_input("Tomatometer Count", min_value=1, value=550, key="tomatometer_count")
 
-# Slider for tomatometer ratings (updated range from 30 to 100)
-st.subheader("Adjust Tomatometer Ratings")
-tomatometer_range = st.slider("Select a range of Tomatometer Ratings", 30, 100, (30, 100))
-target_audience_rating = st.number_input("Target Audience Rating", min_value=1, max_value=100, value=95)
+# Dropdown for single tomatometer rating selection
+st.subheader("Select a Tomatometer Rating")
+selected_tomatometer_rating = st.selectbox(
+    "Choose a single Tomatometer Rating:",
+    list(range(10, 101))  # Ratings from 10 to 100 (inclusive)
+)
 
-# Generate predictions
-if st.button("Predict Optimal Tomatometer Rating"):
-    # Generate a range of tomatometer ratings (updated)
-    tomatometer_ratings = np.arange(tomatometer_range[0], tomatometer_range[1] + 1, 1)
-    repeated_data = pd.concat([create_movie_data(r) for r in tomatometer_ratings], ignore_index=True)
+# Generate predictions for the selected rating
+if st.button("Predict Audience Rating"):
+    # Create movie data for the selected rating
+    movie_data = create_movie_data(selected_tomatometer_rating)
 
-    # Predict audience ratings
-    predicted_ratings = model.predict(repeated_data)
+    # Predict audience rating
+    predicted_rating = model.predict(movie_data)[0]
 
-    # Find the best tomatometer rating
-    differences = np.abs(predicted_ratings - target_audience_rating)
-    best_index = np.argmin(differences)
+    # Display the result
+    st.subheader("🎯 Prediction Results")
+    st.write(f"**Selected Tomatometer Rating:** {selected_tomatometer_rating}")
+    st.write(f"**Predicted Audience Rating:** {predicted_rating:.2f}")
 
-    # Extract the best features and predictions
-    best_input_features = repeated_data.iloc[best_index]
-    best_prediction = predicted_ratings[best_index]
-
-    # Display results
-    st.subheader("🎯 Best Prediction Results")
-    st.write(f"**Optimal Tomatometer Rating:** {best_input_features['tomatometer_rating']}")
-    st.write(f"**Predicted Audience Rating:** {best_prediction:.2f}")
-
-    st.write("**Final Adjusted Movie Features:**")
-    st.dataframe(best_input_features.to_frame().T)
+    # Display final movie features
+    st.write("**Movie Features Used for Prediction:**")
+    st.dataframe(movie_data)
